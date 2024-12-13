@@ -314,9 +314,33 @@ except Exception as e:
     st.stop()
 
 # Start the video stream
+# webrtc_streamer(
+#     key="knife-detection",
+#     video_transformer_factory=lambda: KnifeDetectionTransformer(model, scaler),
+#     media_stream_constraints={
+#         "video": True,
+#         "audio": False
+#     },
+# )
+
+
+from streamlit_webrtc import RTCConfiguration
+
+rtc_config = RTCConfiguration({
+    "iceServers": [
+        {"urls": ["stun:stun.l.google.com:19302"]},  # Google's public STUN server
+        {
+            "urls": ["turn:relay.metered.ca:443"],
+            "username": "open",
+            "credential": "open"
+        },
+    ]
+})
+
 webrtc_streamer(
     key="knife-detection",
     video_transformer_factory=lambda: KnifeDetectionTransformer(model, scaler),
+    rtc_configuration=rtc_config,  # Pass the RTCConfiguration
     media_stream_constraints={
         "video": True,
         "audio": False
