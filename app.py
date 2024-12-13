@@ -164,8 +164,36 @@ class KnifeDetectionTransformer(VideoTransformerBase):
         self.model = model
         self.scaler = scaler
 
+    # def transform(self, frame):
+    #     image = frame.to_ndarray(format="bgr24")
+    #     h, w, _ = image.shape
+    #     window_size = 64
+    #     step_size = 32
+    #
+    #     detected_boxes = []
+    #     for y in range(0, h - window_size, step_size):
+    #         for x in range(0, w - window_size, step_size):
+    #             roi_features = extract_features(image, (x, y, x + window_size, y + window_size))
+    #             if roi_features is None:
+    #                 print(f"Skipping invalid ROI at: {x}, {y}")
+    #                 continue
+    #             roi_features = self.scaler.transform([roi_features])
+    #             prediction = self.model.predict(roi_features)
+    #
+    #             if prediction == 1:  # Knife detected
+    #                 print(f"Knife detected at: {xmin}, {ymin}, {xmax}, {ymax}")  # Debugging
+    #                 detected_boxes.append((x, y, x + window_size, y + window_size))
+    #
+    #     for (xmin, ymin, xmax, ymax) in detected_boxes:
+    #         cv2.rectangle(image, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
+    #         cv2.putText(image, "Knife Detected", (xmin, ymin - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+    #
+    #     return image
+
     def transform(self, frame):
         image = frame.to_ndarray(format="bgr24")
+        print("Frame received for processing")  # Debugging
+
         h, w, _ = image.shape
         window_size = 64
         step_size = 32
@@ -175,18 +203,22 @@ class KnifeDetectionTransformer(VideoTransformerBase):
             for x in range(0, w - window_size, step_size):
                 roi_features = extract_features(image, (x, y, x + window_size, y + window_size))
                 if roi_features is None:
+                    print(f"Skipping invalid ROI at: {x}, {y}")  # Debugging
                     continue
                 roi_features = self.scaler.transform([roi_features])
                 prediction = self.model.predict(roi_features)
 
                 if prediction == 1:  # Knife detected
+                    print(f"Knife detected at: {x}, {y}")  # Debugging
                     detected_boxes.append((x, y, x + window_size, y + window_size))
 
         for (xmin, ymin, xmax, ymax) in detected_boxes:
             cv2.rectangle(image, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
             cv2.putText(image, "Knife Detected", (xmin, ymin - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
+        print(f"Processed frame with {len(detected_boxes)} detections")  # Debugging
         return image
+
 
 # Streamlit App
 st.title("Live Knife Detection Web App")
