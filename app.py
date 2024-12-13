@@ -221,128 +221,279 @@
 #     },
 # )
 
-import cv2
-import numpy as np
-import joblib
-import streamlit as st
-from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
 
-# Load the model and scaler
-def load_model_and_scaler(model_path="svm_model.pkl", scaler_path="scaler.pkl"):
-    model = joblib.load(model_path)
-    scaler = joblib.load(scaler_path)
-    return model, scaler
+# --- working code is below
 
-# Feature extraction
-def extract_features(image, bbox):
-    xmin, ymin, xmax, ymax = bbox
-    roi = image[ymin:ymax, xmin:xmax]
+# import cv2
+# import numpy as np
+# import joblib
+# import streamlit as st
+# from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
 
-    if roi.size == 0:
-        return None
+# # Load the model and scaler
+# def load_model_and_scaler(model_path="svm_model.pkl", scaler_path="scaler.pkl"):
+#     model = joblib.load(model_path)
+#     scaler = joblib.load(scaler_path)
+#     return model, scaler
 
-    try:
-        roi_resized = cv2.resize(roi, (64, 128))
-    except Exception as e:
-        return None
+# # Feature extraction
+# def extract_features(image, bbox):
+#     xmin, ymin, xmax, ymax = bbox
+#     roi = image[ymin:ymax, xmin:xmax]
 
-    roi_gray = cv2.cvtColor(roi_resized, cv2.COLOR_RGB2GRAY)
+#     if roi.size == 0:
+#         return None
 
-    hog = cv2.HOGDescriptor()
-    hog_features = hog.compute(roi_gray).flatten()
+#     try:
+#         roi_resized = cv2.resize(roi, (64, 128))
+#     except Exception as e:
+#         return None
 
-    edges = cv2.Canny(roi_gray, 100, 200)
-    edge_features = edges.flatten()
+#     roi_gray = cv2.cvtColor(roi_resized, cv2.COLOR_RGB2GRAY)
 
-    hist = cv2.calcHist([roi_resized], [0, 1, 2], None, [8, 8, 8], [0, 256, 0, 256, 0, 256])
-    color_features = hist.flatten()
+#     hog = cv2.HOGDescriptor()
+#     hog_features = hog.compute(roi_gray).flatten()
 
-    return np.hstack((hog_features, edge_features, color_features))
+#     edges = cv2.Canny(roi_gray, 100, 200)
+#     edge_features = edges.flatten()
 
-# Transformer for Streamlit WebRTC
-class KnifeDetectionTransformer(VideoTransformerBase):
-    def __init__(self, model, scaler):
-        self.model = model
-        self.scaler = scaler
-        self.frame_count = 0  # Count frames to sample FPS
+#     hist = cv2.calcHist([roi_resized], [0, 1, 2], None, [8, 8, 8], [0, 256, 0, 256, 0, 256])
+#     color_features = hist.flatten()
 
-    def transform(self, frame):
-        self.frame_count += 1
-        sample_rate = 6  # Process every 6th frame for ~5 FPS
+#     return np.hstack((hog_features, edge_features, color_features))
 
-        # Skip frames to reduce processing frequency
-        if self.frame_count % sample_rate != 0:
-            return frame.to_ndarray(format="bgr24")
+# # Transformer for Streamlit WebRTC
+# class KnifeDetectionTransformer(VideoTransformerBase):
+#     def __init__(self, model, scaler):
+#         self.model = model
+#         self.scaler = scaler
+#         self.frame_count = 0  # Count frames to sample FPS
 
-        image = frame.to_ndarray(format="bgr24")
-        h, w, _ = image.shape
-        window_size = 64
-        step_size = 32
+#     def transform(self, frame):
+#         self.frame_count += 1
+#         sample_rate = 6  # Process every 6th frame for ~5 FPS
 
-        detected_boxes = []
-        for y in range(0, h - window_size, step_size):
-            for x in range(0, w - window_size, step_size):
-                roi_features = extract_features(image, (x, y, x + window_size, y + window_size))
-                if roi_features is None:
-                    continue
-                roi_features = self.scaler.transform([roi_features])
-                prediction = self.model.predict(roi_features)
+#         # Skip frames to reduce processing frequency
+#         if self.frame_count % sample_rate != 0:
+#             return frame.to_ndarray(format="bgr24")
 
-                if prediction == 1:  # Knife detected
-                    detected_boxes.append((x, y, x + window_size, y + window_size))
+#         image = frame.to_ndarray(format="bgr24")
+#         h, w, _ = image.shape
+#         window_size = 64
+#         step_size = 32
 
-        for (xmin, ymin, xmax, ymax) in detected_boxes:
-            cv2.rectangle(image, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
-            cv2.putText(image, "Knife Detected", (xmin, ymin - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+#         detected_boxes = []
+#         for y in range(0, h - window_size, step_size):
+#             for x in range(0, w - window_size, step_size):
+#                 roi_features = extract_features(image, (x, y, x + window_size, y + window_size))
+#                 if roi_features is None:
+#                     continue
+#                 roi_features = self.scaler.transform([roi_features])
+#                 prediction = self.model.predict(roi_features)
 
-        return image
+#                 if prediction == 1:  # Knife detected
+#                     detected_boxes.append((x, y, x + window_size, y + window_size))
 
-# Streamlit App
-st.title("Live Knife Detection Web App")
-st.write("This application uses a trained SVM model to detect knives in a live video feed.")
+#         for (xmin, ymin, xmax, ymax) in detected_boxes:
+#             cv2.rectangle(image, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
+#             cv2.putText(image, "Knife Detected", (xmin, ymin - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
-# Load model and scaler
-model_path = "svm_model.pkl"
-scaler_path = "scaler.pkl"
-st.write("Loading model and scaler...")
+#         return image
 
-try:
-    model, scaler = load_model_and_scaler(model_path, scaler_path)
-    st.success("Model and scaler loaded successfully!")
-except Exception as e:
-    st.error(f"Error loading model or scaler: {e}")
-    st.stop()
+# # Streamlit App
+# st.title("Live Knife Detection Web App")
+# st.write("This application uses a trained SVM model to detect knives in a live video feed.")
 
-# Start the video stream
+# # Load model and scaler
+# model_path = "svm_model.pkl"
+# scaler_path = "scaler.pkl"
+# st.write("Loading model and scaler...")
+
+# try:
+#     model, scaler = load_model_and_scaler(model_path, scaler_path)
+#     st.success("Model and scaler loaded successfully!")
+# except Exception as e:
+#     st.error(f"Error loading model or scaler: {e}")
+#     st.stop()
+
+# # Start the video stream
+# # webrtc_streamer(
+# #     key="knife-detection",
+# #     video_transformer_factory=lambda: KnifeDetectionTransformer(model, scaler),
+# #     media_stream_constraints={
+# #         "video": True,
+# #         "audio": False
+# #     },
+# # )
+
+
+# from streamlit_webrtc import RTCConfiguration
+
+# rtc_config = RTCConfiguration({
+#     "iceServers": [
+#         {"urls": ["stun:stun.l.google.com:19302"]},  # Google's public STUN server
+#         {
+#             "urls": ["turn:relay.metered.ca:443"],
+#             "username": "open",
+#             "credential": "open"
+#         },
+#     ]
+# })
+
 # webrtc_streamer(
 #     key="knife-detection",
 #     video_transformer_factory=lambda: KnifeDetectionTransformer(model, scaler),
+#     rtc_configuration=rtc_config,  # Pass the RTCConfiguration
 #     media_stream_constraints={
 #         "video": True,
 #         "audio": False
 #     },
 # )
 
+import cv2
+import streamlit as st
+import numpy as np
 
-from streamlit_webrtc import RTCConfiguration
+# Streamlit app title and description
+st.title("Real-Time Cartoon Filter")
+st.write("A cartoon filter with enhancements and fun face filters. Click 'Start Video' to begin and explore features using the buttons.")
 
-rtc_config = RTCConfiguration({
-    "iceServers": [
-        {"urls": ["stun:stun.l.google.com:19302"]},  # Google's public STUN server
-        {
-            "urls": ["turn:relay.metered.ca:443"],
-            "username": "open",
-            "credential": "open"
-        },
-    ]
-})
+# Define Start and Stop buttons
+start_button = st.button("Start Video")
+stop_button = st.button("Stop Video")
 
-webrtc_streamer(
-    key="knife-detection",
-    video_transformer_factory=lambda: KnifeDetectionTransformer(model, scaler),
-    rtc_configuration=rtc_config,  # Pass the RTCConfiguration
-    media_stream_constraints={
-        "video": True,
-        "audio": False
-    },
-)
+# Feature toggle buttons
+cartoon_enhance_button = st.button("Cartoon Enhance")
+emoji_mask_button = st.button("Emoji Masks")
+custom_accessories_button = st.button("Custom Accessories")
+
+# Initialize session state variables
+if "run" not in st.session_state:
+    st.session_state.run = False
+if "feature" not in st.session_state:
+    st.session_state.feature = None
+
+# Update session state based on button clicks
+if start_button:
+    st.session_state.run = True
+if stop_button:
+    st.session_state.run = False
+if cartoon_enhance_button:
+    st.session_state.feature = "enhance"
+if emoji_mask_button:
+    st.session_state.feature = "emoji"
+if custom_accessories_button:
+    st.session_state.feature = "accessories"
+
+# Cartoonization parameters
+BILATERAL_FILTER_VALUE = 5  # Reduced for better speed
+COLOR_QUANTIZATION_LEVEL = 8  # Reduced for faster processing
+
+# Load Haar Cascade for face detection
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+
+# Load overlay images for accessories
+hat_img = cv2.imread("hat.png", -1)  # Ensure you have this file
+sunglasses_img = cv2.imread("sunglasses.png", -1)  # Ensure you have this file
+
+def apply_bilateral_filter(frame):
+    """Smooths the image while preserving edges using bilateral filtering."""
+    return cv2.bilateralFilter(frame, BILATERAL_FILTER_VALUE, 75, 75)
+
+def color_quantization(frame, k=COLOR_QUANTIZATION_LEVEL):
+    """Applies color quantization to reduce the color palette of the image."""
+    data = np.float32(frame).reshape((-1, 3))
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+    _, labels, palette = cv2.kmeans(data, k, None, criteria, 3, cv2.KMEANS_RANDOM_CENTERS)
+    quantized = palette[labels.flatten()].reshape(frame.shape)
+    return quantized.astype(np.uint8)
+
+def detect_edges_stylized(gray_frame):
+    """Detects edges using a stylized filter approach."""
+    edges = cv2.adaptiveThreshold(
+        gray_frame, 255,
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY,
+        blockSize=9,
+        C=2
+    )
+    return edges
+
+def overlay_image(background, overlay, x, y):
+    """Overlays a transparent image onto a background image."""
+    for c in range(0, 3):
+        alpha = overlay[:, :, 3] / 255.0
+        background[y:y+overlay.shape[0], x:x+overlay.shape[1], c] = (
+            alpha * overlay[:, :, c] +
+            (1 - alpha) * background[y:y+overlay.shape[0], x:x+overlay.shape[1], c]
+        )
+
+def cartoonize_frame(frame):
+    """Main cartoonization pipeline."""
+    filtered = apply_bilateral_filter(frame)
+    gray = cv2.cvtColor(filtered, cv2.COLOR_BGR2GRAY)
+    edges = detect_edges_stylized(gray)
+    quantized = color_quantization(filtered)
+    edges_colored = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
+    cartoon = cv2.bitwise_and(quantized, edges_colored)
+    return cartoon
+
+def enhance_cartoon(frame):
+    """Applies enhancements to the cartoon effect."""
+    cartoon = cartoonize_frame(frame)
+    return cv2.applyColorMap(cartoon, cv2.COLORMAP_HOT)
+
+def apply_emoji_mask(frame):
+    """Detects faces and applies emoji masks."""
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+    emoji = cv2.imread("emoji.png", -1)  # Ensure you have this file
+
+    for (x, y, w, h) in faces:
+        emoji_resized = cv2.resize(emoji, (w, h))
+        overlay_image(frame, emoji_resized, x, y)
+    return frame
+
+def apply_custom_accessories(frame):
+    """Detects faces and applies custom accessories like hats and sunglasses."""
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+
+    for (x, y, w, h) in faces:
+        # Add hat
+        hat_resized = cv2.resize(hat_img, (w, int(0.5 * h)))
+        overlay_image(frame, hat_resized, x, y - int(0.5 * h))
+
+        # Add sunglasses
+        sunglasses_resized = cv2.resize(sunglasses_img, (w, int(0.3 * h)))
+        overlay_image(frame, sunglasses_resized, x, y + int(0.2 * h))
+    return frame
+
+# Open video capture if Start button is clicked
+cap = cv2.VideoCapture(0)
+
+if st.session_state.run:
+    stframe = st.empty()  # Placeholder for video frames
+
+    while st.session_state.run:
+        ret, frame = cap.read()
+        if not ret:
+            st.warning("Unable to access webcam.")
+            break
+
+        if st.session_state.feature == "enhance":
+            frame = enhance_cartoon(frame)
+        elif st.session_state.feature == "emoji":
+            frame = apply_emoji_mask(frame)
+        elif st.session_state.feature == "accessories":
+            frame = apply_custom_accessories(frame)
+        else:
+            frame = cartoonize_frame(frame)
+
+        # Display the processed video feed
+        stframe.image(frame, channels="BGR")
+
+# Release video capture when Stop button is clicked
+if not st.session_state.run and cap.isOpened():
+    cap.release()
+    st.write("Video stopped.")
