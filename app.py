@@ -350,6 +350,159 @@
 #     },
 # )
 
+
+## cartoon code 
+
+
+# import cv2
+# import streamlit as st
+# import numpy as np
+
+# # Streamlit app title and description
+# st.title("Real-Time Cartoon Filter")
+# st.write("A cartoon filter with enhancements and fun face filters. Click 'Start Video' to begin and explore features using the buttons.")
+
+# # Define Start and Stop buttons
+# start_button = st.button("Start Video")
+# stop_button = st.button("Stop Video")
+
+# # Feature toggle buttons
+# cartoon_enhance_button = st.button("Cartoon Enhance")
+# emoji_mask_button = st.button("Emoji Masks")
+# custom_accessories_button = st.button("Custom Accessories")
+
+# # Initialize session state variables
+# if "run" not in st.session_state:
+#     st.session_state.run = False
+# if "feature" not in st.session_state:
+#     st.session_state.feature = None
+
+# # Update session state based on button clicks
+# if start_button:
+#     st.session_state.run = True
+# if stop_button:
+#     st.session_state.run = False
+# if cartoon_enhance_button:
+#     st.session_state.feature = "enhance"
+# if emoji_mask_button:
+#     st.session_state.feature = "emoji"
+# if custom_accessories_button:
+#     st.session_state.feature = "accessories"
+
+# # Cartoonization parameters
+# BILATERAL_FILTER_VALUE = 5  # Reduced for better speed
+# COLOR_QUANTIZATION_LEVEL = 8  # Reduced for faster processing
+
+# # Load Haar Cascade for face detection
+# face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+
+# # Load overlay images for accessories
+# hat_img = cv2.imread("hat.png", -1)  # Ensure you have this file
+# sunglasses_img = cv2.imread("sunglasses.png", -1)  # Ensure you have this file
+
+# def apply_bilateral_filter(frame):
+#     """Smooths the image while preserving edges using bilateral filtering."""
+#     return cv2.bilateralFilter(frame, BILATERAL_FILTER_VALUE, 75, 75)
+
+# def color_quantization(frame, k=COLOR_QUANTIZATION_LEVEL):
+#     """Applies color quantization to reduce the color palette of the image."""
+#     data = np.float32(frame).reshape((-1, 3))
+#     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+#     _, labels, palette = cv2.kmeans(data, k, None, criteria, 3, cv2.KMEANS_RANDOM_CENTERS)
+#     quantized = palette[labels.flatten()].reshape(frame.shape)
+#     return quantized.astype(np.uint8)
+
+# def detect_edges_stylized(gray_frame):
+#     """Detects edges using a stylized filter approach."""
+#     edges = cv2.adaptiveThreshold(
+#         gray_frame, 255,
+#         cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+#         cv2.THRESH_BINARY,
+#         blockSize=9,
+#         C=2
+#     )
+#     return edges
+
+# def overlay_image(background, overlay, x, y):
+#     """Overlays a transparent image onto a background image."""
+#     for c in range(0, 3):
+#         alpha = overlay[:, :, 3] / 255.0
+#         background[y:y+overlay.shape[0], x:x+overlay.shape[1], c] = (
+#             alpha * overlay[:, :, c] +
+#             (1 - alpha) * background[y:y+overlay.shape[0], x:x+overlay.shape[1], c]
+#         )
+
+# def cartoonize_frame(frame):
+#     """Main cartoonization pipeline."""
+#     filtered = apply_bilateral_filter(frame)
+#     gray = cv2.cvtColor(filtered, cv2.COLOR_BGR2GRAY)
+#     edges = detect_edges_stylized(gray)
+#     quantized = color_quantization(filtered)
+#     edges_colored = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
+#     cartoon = cv2.bitwise_and(quantized, edges_colored)
+#     return cartoon
+
+# def enhance_cartoon(frame):
+#     """Applies enhancements to the cartoon effect."""
+#     cartoon = cartoonize_frame(frame)
+#     return cv2.applyColorMap(cartoon, cv2.COLORMAP_HOT)
+
+# def apply_emoji_mask(frame):
+#     """Detects faces and applies emoji masks."""
+#     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+#     faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+#     emoji = cv2.imread("emoji.png", -1)  # Ensure you have this file
+
+#     for (x, y, w, h) in faces:
+#         emoji_resized = cv2.resize(emoji, (w, h))
+#         overlay_image(frame, emoji_resized, x, y)
+#     return frame
+
+# def apply_custom_accessories(frame):
+#     """Detects faces and applies custom accessories like hats and sunglasses."""
+#     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+#     faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+
+#     for (x, y, w, h) in faces:
+#         # Add hat
+#         hat_resized = cv2.resize(hat_img, (w, int(0.5 * h)))
+#         overlay_image(frame, hat_resized, x, y - int(0.5 * h))
+
+#         # Add sunglasses
+#         sunglasses_resized = cv2.resize(sunglasses_img, (w, int(0.3 * h)))
+#         overlay_image(frame, sunglasses_resized, x, y + int(0.2 * h))
+#     return frame
+
+# # Open video capture if Start button is clicked
+# cap = cv2.VideoCapture(0)
+
+# if st.session_state.run:
+#     stframe = st.empty()  # Placeholder for video frames
+
+#     while st.session_state.run:
+#         ret, frame = cap.read()
+#         if not ret:
+#             st.warning("Unable to access webcam.")
+#             break
+
+#         if st.session_state.feature == "enhance":
+#             frame = enhance_cartoon(frame)
+#         elif st.session_state.feature == "emoji":
+#             frame = apply_emoji_mask(frame)
+#         elif st.session_state.feature == "accessories":
+#             frame = apply_custom_accessories(frame)
+#         else:
+#             frame = cartoonize_frame(frame)
+
+#         # Display the processed video feed
+#         stframe.image(frame, channels="BGR")
+
+# # Release video capture when Stop button is clicked
+# if not st.session_state.run and cap.isOpened():
+#     cap.release()
+#     st.write("Video stopped.")
+
+
 import cv2
 import streamlit as st
 import numpy as np
