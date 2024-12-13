@@ -118,7 +118,108 @@
 #     detect_knife_live_video(model, scaler)
 #
 
+# -------------- initial streamlit deployed code
 
+# import cv2
+# import numpy as np
+# import joblib
+# import streamlit as st
+# from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
+#
+# # Load the model and scaler
+# def load_model_and_scaler(model_path="svm_model.pkl", scaler_path="scaler.pkl"):
+#     model = joblib.load(model_path)
+#     scaler = joblib.load(scaler_path)
+#     return model, scaler
+#
+# # Feature extraction
+# def extract_features(image, bbox):
+#     xmin, ymin, xmax, ymax = bbox
+#     roi = image[ymin:ymax, xmin:xmax]
+#
+#     if roi.size == 0:
+#         return None
+#
+#     try:
+#         roi_resized = cv2.resize(roi, (64, 128))
+#     except Exception as e:
+#         return None
+#
+#     roi_gray = cv2.cvtColor(roi_resized, cv2.COLOR_RGB2GRAY)
+#
+#     hog = cv2.HOGDescriptor()
+#     hog_features = hog.compute(roi_gray).flatten()
+#
+#     edges = cv2.Canny(roi_gray, 100, 200)
+#     edge_features = edges.flatten()
+#
+#     hist = cv2.calcHist([roi_resized], [0, 1, 2], None, [8, 8, 8], [0, 256, 0, 256, 0, 256])
+#     color_features = hist.flatten()
+#
+#     return np.hstack((hog_features, edge_features, color_features))
+#
+# # Transformer for Streamlit WebRTC
+# class KnifeDetectionTransformer(VideoTransformerBase):
+#     def __init__(self, model, scaler):
+#         self.model = model
+#         self.scaler = scaler
+#
+#
+#     def transform(self, frame):
+#         image = frame.to_ndarray(format="bgr24")
+#         print("Frame received for processing")  # Debugging
+#
+#         h, w, _ = image.shape
+#         window_size = 64
+#         step_size = 32
+#
+#         detected_boxes = []
+#         for y in range(0, h - window_size, step_size):
+#             for x in range(0, w - window_size, step_size):
+#                 roi_features = extract_features(image, (x, y, x + window_size, y + window_size))
+#                 if roi_features is None:
+#                     print(f"Skipping invalid ROI at: {x}, {y}")  # Debugging
+#                     continue
+#                 roi_features = self.scaler.transform([roi_features])
+#                 prediction = self.model.predict(roi_features)
+#
+#                 if prediction == 1:  # Knife detected
+#                     print(f"Knife detected at: {x}, {y}")  # Debugging
+#                     detected_boxes.append((x, y, x + window_size, y + window_size))
+#
+#         for (xmin, ymin, xmax, ymax) in detected_boxes:
+#             cv2.rectangle(image, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
+#             cv2.putText(image, "Knife Detected", (xmin, ymin - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+#
+#         print(f"Processed frame with {len(detected_boxes)} detections")  # Debugging
+#         return image
+#
+#
+# # Streamlit App
+# st.title("Live Knife Detection Web App")
+# st.write("This application uses a trained SVM model to detect knives in a live video feed.")
+#
+# # Load model and scaler
+# model_path = "svm_model.pkl"
+# scaler_path = "scaler.pkl"
+# st.write("Loading model and scaler...")
+#
+# try:
+#     model, scaler = load_model_and_scaler(model_path, scaler_path)
+#     st.success("Model and scaler loaded successfully!")
+# except Exception as e:
+#     st.error(f"Error loading model or scaler: {e}")
+#     st.stop()
+#
+# # Start the video stream
+# webrtc_streamer(
+#     key="knife-detection",
+#     video_transformer_factory=lambda: KnifeDetectionTransformer(model, scaler),
+#     media_stream_constraints={
+#         "video": True,
+#         "audio": False
+#     },
+# )
 
 import cv2
 import numpy as np
@@ -163,37 +264,17 @@ class KnifeDetectionTransformer(VideoTransformerBase):
     def __init__(self, model, scaler):
         self.model = model
         self.scaler = scaler
-
-    # def transform(self, frame):
-    #     image = frame.to_ndarray(format="bgr24")
-    #     h, w, _ = image.shape
-    #     window_size = 64
-    #     step_size = 32
-    #
-    #     detected_boxes = []
-    #     for y in range(0, h - window_size, step_size):
-    #         for x in range(0, w - window_size, step_size):
-    #             roi_features = extract_features(image, (x, y, x + window_size, y + window_size))
-    #             if roi_features is None:
-    #                 print(f"Skipping invalid ROI at: {x}, {y}")
-    #                 continue
-    #             roi_features = self.scaler.transform([roi_features])
-    #             prediction = self.model.predict(roi_features)
-    #
-    #             if prediction == 1:  # Knife detected
-    #                 print(f"Knife detected at: {xmin}, {ymin}, {xmax}, {ymax}")  # Debugging
-    #                 detected_boxes.append((x, y, x + window_size, y + window_size))
-    #
-    #     for (xmin, ymin, xmax, ymax) in detected_boxes:
-    #         cv2.rectangle(image, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
-    #         cv2.putText(image, "Knife Detected", (xmin, ymin - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-    #
-    #     return image
+        self.frame_count = 0  # Count frames to sample FPS
 
     def transform(self, frame):
-        image = frame.to_ndarray(format="bgr24")
-        print("Frame received for processing")  # Debugging
+        self.frame_count += 1
+        sample_rate = 6  # Process every 6th frame for ~5 FPS
 
+        # Skip frames to reduce processing frequency
+        if self.frame_count % sample_rate != 0:
+            return frame.to_ndarray(format="bgr24")
+
+        image = frame.to_ndarray(format="bgr24")
         h, w, _ = image.shape
         window_size = 64
         step_size = 32
@@ -203,22 +284,18 @@ class KnifeDetectionTransformer(VideoTransformerBase):
             for x in range(0, w - window_size, step_size):
                 roi_features = extract_features(image, (x, y, x + window_size, y + window_size))
                 if roi_features is None:
-                    print(f"Skipping invalid ROI at: {x}, {y}")  # Debugging
                     continue
                 roi_features = self.scaler.transform([roi_features])
                 prediction = self.model.predict(roi_features)
 
                 if prediction == 1:  # Knife detected
-                    print(f"Knife detected at: {x}, {y}")  # Debugging
                     detected_boxes.append((x, y, x + window_size, y + window_size))
 
         for (xmin, ymin, xmax, ymax) in detected_boxes:
             cv2.rectangle(image, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
             cv2.putText(image, "Knife Detected", (xmin, ymin - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
-        print(f"Processed frame with {len(detected_boxes)} detections")  # Debugging
         return image
-
 
 # Streamlit App
 st.title("Live Knife Detection Web App")
