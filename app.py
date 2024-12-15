@@ -640,36 +640,147 @@
 
 # st.write("Select a mode above to get started!")
 
-import streamlit as st
-import cv2
-import numpy as np
-
-st.title("Webcam Live Feed")
-
-picture = st.camera_input("Take a picture")
-
-if picture:
-    # Convert the uploaded image to OpenCV format
-    bytes_data = picture.getvalue()
-    np_arr = np.frombuffer(bytes_data, np.uint8)
-    frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-
-    # Display the frame in RGB format
-    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    st.image(frame, caption="Captured Image", use_container_width=True)
-
-# import cv2
 # import streamlit as st
+# import cv2
+# import numpy as np
 
 # st.title("Webcam Live Feed")
-# run = st.checkbox('Run')
-# FRAME_WINDOW = st.image([])
-# camera = cv2.VideoCapture(0)
 
-# while run:
-#     _, frame = camera.read()
+# picture = st.camera_input("Take a picture")
+
+# if picture:
+#     # Convert the uploaded image to OpenCV format
+#     bytes_data = picture.getvalue()
+#     np_arr = np.frombuffer(bytes_data, np.uint8)
+#     frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+
+#     # Display the frame in RGB format
 #     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-#     FRAME_WINDOW.image(frame)
-# else:
-#     st.write('Stopped')
+#     st.image(frame, caption="Captured Image", use_container_width=True)
+
+import cv2
+import numpy as np
+import joblib
+import streamlit as st
+from PIL import Image
+
+def load_model_and_scaler(model_path="svm_model.pkl", scaler_path="scaler.pkl"):
+    # Load the trained model
+    model = joblib.load(model_path)
+    print(f"Model loaded from {model_path}")
+
+    # Load the scaler
+    scaler = joblib.load(scaler_path)
+    print(f"Scaler loaded from {scaler_path}")
+
+    return model, scaler
+
+# Load the model and scaler
+loaded_model, loaded_scaler = load_model_and_scaler("svm_model.pkl", "scaler.pkl")
+
+def extract_features(image, bbox):
+    xmin, ymin, xmax, ymax = bbox
+    roi = image[ymin:ymax, xmin:xmax]
+
+    # Ensure the ROI has valid dimensions
+    if roi.size == 0:
+        print("Invalid ROI: Skipping...")
+        return None
+
+    # Resize ROI to a fixed size (e.g., 64x128 for HOG compatibility)
+    try:
+        roi_resized = cv2.resize(roi, (64, 128))
+    except Exception as e:
+        print(f"Error resizing ROI: {e}")
+        return None
+
+    # Convert ROI to grayscale (required by HOG)
+    roi_gray = cv2.cvtColor(roi_resized, cv2.COLOR_BGR2GRAY)
+
+    # HOG features
+    hog = cv2.HOGDescriptor()
+    hog_features = hog.compute(roi_gray).flatten()
+
+    # Edge detection (Canny)
+    edges = cv2.Canny(roi_gray, 100, 200)
+    edge_features = edges.flatten()
+
+    # Color histogram
+    hist = cv2.calcHist([roi_resized], [0, 1, 2], None, [8, 8, 8], [0, 256, 0, 256, 0, 256])
+    color_features = hist.flatten()
+
+    # Combine all features
+    return np.hstack((hog_features, edge_features, color_features))
+
+# Streamlit App
+st.title("Knife Detection Using SVM")
+st.markdown("Live webcam video processing for knife detection using SVM.")
+
+# Access webcam via OpenCV
+FRAME_WINDOW = st.image([])
+
+# Open webcam
+camera = cv2.VideoCapture(0)
+
+# Check if webcam is opened
+if not camera.isOpened():
+    st.error("Error: Could not access the webcam.")
+else:
+    run = st.checkbox("Run Video Stream")
+
+    while run:
+        # Capture a frame
+        ret, frame = camera.read()
+        if not ret:
+            st.error("Error: Unable to read from webcam.")
+            break
+
+        # Resize frame for processing
+        frame_resized = cv2.resize(frame, (640, 480))
+        h, w, _ = frame_resized.shape
+
+        # Sliding window parameters
+        window_size = 64
+        step_size = 32
+
+        # Detect knives using the SVM model
+        detected_boxes = []
+        for y in range(0, h - window_size, step_size):
+            for x in range(0, w - window_size, step_size):
+                roi_features = extract_features(
+                    frame_resized, (x, y, x + window_size, y + window_size)
+                )
+
+                if roi_features is None:
+                    continue
+
+                # Scale features and make predictions
+                roi_features_scaled = loaded_scaler.transform([roi_features])
+                prediction = loaded_model.predict(roi_features_scaled)
+
+                if prediction == 1:  # Knife detected
+                    detected_boxes.append((x, y, x + window_size, y + window_size))
+
+        # Draw bounding boxes on the frame
+        for (xmin, ymin, xmax, ymax) in detected_boxes:
+            cv2.rectangle(frame_resized, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
+            cv2.putText(
+                frame_resized,
+                "Knife Detected",
+                (xmin, ymin - 10),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                (0, 255, 0),
+                2,
+            )
+
+        # Convert BGR to RGB for Streamlit
+        frame_rgb = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB)
+
+        # Display the frame in Streamlit
+        FRAME_WINDOW.image(frame_rgb)
+
+    # Release the webcam when done
+    camera.release()
+    st.write("Video stream stopped.")
 
