@@ -656,7 +656,7 @@ if picture:
 
     # Display the frame in RGB format
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    st.image(frame, caption="Captured Image", use_column_width=True)
+    st.image(frame, caption="Captured Image", use_container_width=True)
 
 # import cv2
 # import streamlit as st
