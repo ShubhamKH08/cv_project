@@ -640,18 +640,36 @@
 
 # st.write("Select a mode above to get started!")
 
-import cv2
 import streamlit as st
+import cv2
+import numpy as np
 
 st.title("Webcam Live Feed")
-run = st.checkbox('Run')
-FRAME_WINDOW = st.image([])
-camera = cv2.VideoCapture(0)
 
-while run:
-    _, frame = camera.read()
+picture = st.camera_input("Take a picture")
+
+if picture:
+    # Convert the uploaded image to OpenCV format
+    bytes_data = picture.getvalue()
+    np_arr = np.frombuffer(bytes_data, np.uint8)
+    frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+
+    # Display the frame in RGB format
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    FRAME_WINDOW.image(frame)
-else:
-    st.write('Stopped')
+    st.image(frame, caption="Captured Image", use_column_width=True)
+
+# import cv2
+# import streamlit as st
+
+# st.title("Webcam Live Feed")
+# run = st.checkbox('Run')
+# FRAME_WINDOW = st.image([])
+# camera = cv2.VideoCapture(0)
+
+# while run:
+#     _, frame = camera.read()
+#     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+#     FRAME_WINDOW.image(frame)
+# else:
+#     st.write('Stopped')
 
