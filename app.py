@@ -502,141 +502,156 @@
 #     cap.release()
 #     st.write("Video stopped.")
 
+## error in code st
+# import cv2
+# import streamlit as st
+# import numpy as np
+
+# # Updated Model Loading and Detection Logic
+# import joblib
+
+# def load_model_and_scaler(model_path="svm_model.pkl", scaler_path="scaler.pkl"):
+#     """Load the pre-trained model and scaler for knife detection."""
+#     try:
+#         model = joblib.load(model_path)
+#         scaler = joblib.load(scaler_path)
+#         st.success("Model and scaler loaded successfully!")
+#         return model, scaler
+#     except Exception as e:
+#         st.error(f"Error loading model or scaler: {e}")
+#         return None, None
+
+# model_path = "svm_model.pkl"
+# scaler_path = "scaler.pkl"
+# knife_model, knife_scaler = load_model_and_scaler(model_path, scaler_path)
+
+# def detect_knives_with_model(image, model, scaler):
+#     """Applies knife detection using the loaded model and scaler."""
+#     if model is None or scaler is None:
+#         st.error("Knife detection model or scaler is not loaded!")
+#         return image
+
+#     h, w, _ = image.shape
+#     window_size = 64
+#     step_size = 32
+#     detected_boxes = []
+
+#     for y in range(0, h - window_size, step_size):
+#         for x in range(0, w - window_size, step_size):
+#             roi = image[y:y + window_size, x:x + window_size]
+#             if roi.size == 0:
+#                 continue
+
+#             try:
+#                 roi_resized = cv2.resize(roi, (64, 128))
+#                 roi_gray = cv2.cvtColor(roi_resized, cv2.COLOR_BGR2GRAY)
+#                 hog = cv2.HOGDescriptor()
+#                 hog_features = hog.compute(roi_gray).flatten()
+#                 edges = cv2.Canny(roi_gray, 100, 200).flatten()
+#                 hist = cv2.calcHist([roi_resized], [0, 1, 2], None, [8, 8, 8], [0, 256, 0, 256, 0, 256]).flatten()
+#                 features = np.hstack((hog_features, edges, hist))
+#                 features = scaler.transform([features])
+#                 prediction = model.predict(features)
+#                 if prediction == 1:  # Knife detected
+#                     detected_boxes.append((x, y, x + window_size, y + window_size))
+#             except Exception:
+#                 continue
+
+#     for (xmin, ymin, xmax, ymax) in detected_boxes:
+#         cv2.rectangle(image, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
+#         cv2.putText(image, "Knife Detected", (xmin, ymin - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
+#     return image
+
+# # Streamlit app title and description
+# st.title("Real-Time Cartoon Filter and Knife Detection")
+# st.write("Choose between real-time video processing or image upload for knife detection.")
+
+# # Define mode selection
+# mode = st.radio("Select Mode", ("Video Feed", "Upload Image"))
+
+
+# def detect_knives(image):
+#     """Applies knife detection on the uploaded image and returns the image with bounding boxes."""
+#     # Example placeholder detection logic (replace with actual model inference)
+#     # Use pre-trained knife detection model to identify knives and draw bounding boxes
+#     # For demonstration, we add a mock bounding box
+#     height, width = image.shape[:2]
+#     start_point = (int(0.3 * width), int(0.3 * height))
+#     end_point = (int(0.7 * width), int(0.7 * height))
+#     color = (0, 255, 0)  # Green
+#     thickness = 2
+#     cv2.rectangle(image, start_point, end_point, color, thickness)
+#     return image
+
+# if mode == "Video Feed":
+#     # Define Start and Stop buttons
+#     start_button = st.button("Start Video")
+#     stop_button = st.button("Stop Video")
+
+#     # Initialize session state variables
+#     if "run" not in st.session_state:
+#         st.session_state.run = False
+
+#     if start_button:
+#         st.session_state.run = True
+#     if stop_button:
+#         st.session_state.run = False
+
+#     # Open video capture if Start button is clicked
+#     cap = cv2.VideoCapture(0)
+
+#     if st.session_state.run:
+#     stframe = st.empty()  # Placeholder for video frames
+
+#     while st.session_state.run:
+#         ret, frame = cap.read()
+#         if not ret:
+#             st.warning("Unable to access webcam.")
+#             break
+
+#         # Apply knife detection on video frames
+#         frame = detect_knives_with_model(frame, knife_model, knife_scaler)
+#         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # Convert to RGB for Streamlit display
+#         stframe.image(frame, channels="RGB")
+
+
+#     # Release video capture when Stop button is clicked
+#     if not st.session_state.run and cap.isOpened():
+#         cap.release()
+#         st.write("Video stopped.")
+
+# elif mode == "Upload Image":
+#     uploaded_file = st.file_uploader("Upload an image for knife detection", type=["jpg", "png", "jpeg"])
+
+#     if uploaded_file is not None:
+#     # Read the uploaded image
+#     file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
+#     image = cv2.imdecode(file_bytes, 1)
+
+#     # Detect knives using the model
+#     output_image = detect_knives_with_model(image, knife_model, knife_scaler)
+
+#     # Convert to RGB for displaying in Streamlit
+#     output_image = cv2.cvtColor(output_image, cv2.COLOR_BGR2RGB)
+
+#     st.image(output_image, caption="Knife Detection Result", use_column_width=True)
+
+
+# st.write("Select a mode above to get started!")
 
 import cv2
 import streamlit as st
-import numpy as np
 
-# Updated Model Loading and Detection Logic
-import joblib
+st.title("Webcam Live Feed")
+run = st.checkbox('Run')
+FRAME_WINDOW = st.image([])
+camera = cv2.VideoCapture(0)
 
-def load_model_and_scaler(model_path="svm_model.pkl", scaler_path="scaler.pkl"):
-    """Load the pre-trained model and scaler for knife detection."""
-    try:
-        model = joblib.load(model_path)
-        scaler = joblib.load(scaler_path)
-        st.success("Model and scaler loaded successfully!")
-        return model, scaler
-    except Exception as e:
-        st.error(f"Error loading model or scaler: {e}")
-        return None, None
-
-model_path = "svm_model.pkl"
-scaler_path = "scaler.pkl"
-knife_model, knife_scaler = load_model_and_scaler(model_path, scaler_path)
-
-def detect_knives_with_model(image, model, scaler):
-    """Applies knife detection using the loaded model and scaler."""
-    if model is None or scaler is None:
-        st.error("Knife detection model or scaler is not loaded!")
-        return image
-
-    h, w, _ = image.shape
-    window_size = 64
-    step_size = 32
-    detected_boxes = []
-
-    for y in range(0, h - window_size, step_size):
-        for x in range(0, w - window_size, step_size):
-            roi = image[y:y + window_size, x:x + window_size]
-            if roi.size == 0:
-                continue
-
-            try:
-                roi_resized = cv2.resize(roi, (64, 128))
-                roi_gray = cv2.cvtColor(roi_resized, cv2.COLOR_BGR2GRAY)
-                hog = cv2.HOGDescriptor()
-                hog_features = hog.compute(roi_gray).flatten()
-                edges = cv2.Canny(roi_gray, 100, 200).flatten()
-                hist = cv2.calcHist([roi_resized], [0, 1, 2], None, [8, 8, 8], [0, 256, 0, 256, 0, 256]).flatten()
-                features = np.hstack((hog_features, edges, hist))
-                features = scaler.transform([features])
-                prediction = model.predict(features)
-                if prediction == 1:  # Knife detected
-                    detected_boxes.append((x, y, x + window_size, y + window_size))
-            except Exception:
-                continue
-
-    for (xmin, ymin, xmax, ymax) in detected_boxes:
-        cv2.rectangle(image, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
-        cv2.putText(image, "Knife Detected", (xmin, ymin - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-
-    return image
-
-# Streamlit app title and description
-st.title("Real-Time Cartoon Filter and Knife Detection")
-st.write("Choose between real-time video processing or image upload for knife detection.")
-
-# Define mode selection
-mode = st.radio("Select Mode", ("Video Feed", "Upload Image"))
-
-
-def detect_knives(image):
-    """Applies knife detection on the uploaded image and returns the image with bounding boxes."""
-    # Example placeholder detection logic (replace with actual model inference)
-    # Use pre-trained knife detection model to identify knives and draw bounding boxes
-    # For demonstration, we add a mock bounding box
-    height, width = image.shape[:2]
-    start_point = (int(0.3 * width), int(0.3 * height))
-    end_point = (int(0.7 * width), int(0.7 * height))
-    color = (0, 255, 0)  # Green
-    thickness = 2
-    cv2.rectangle(image, start_point, end_point, color, thickness)
-    return image
-
-if mode == "Video Feed":
-    # Define Start and Stop buttons
-    start_button = st.button("Start Video")
-    stop_button = st.button("Stop Video")
-
-    # Initialize session state variables
-    if "run" not in st.session_state:
-        st.session_state.run = False
-
-    if start_button:
-        st.session_state.run = True
-    if stop_button:
-        st.session_state.run = False
-
-    # Open video capture if Start button is clicked
-    cap = cv2.VideoCapture(0)
-
-    if st.session_state.run:
-    stframe = st.empty()  # Placeholder for video frames
-
-    while st.session_state.run:
-        ret, frame = cap.read()
-        if not ret:
-            st.warning("Unable to access webcam.")
-            break
-
-        # Apply knife detection on video frames
-        frame = detect_knives_with_model(frame, knife_model, knife_scaler)
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # Convert to RGB for Streamlit display
-        stframe.image(frame, channels="RGB")
-
-
-    # Release video capture when Stop button is clicked
-    if not st.session_state.run and cap.isOpened():
-        cap.release()
-        st.write("Video stopped.")
-
-elif mode == "Upload Image":
-    uploaded_file = st.file_uploader("Upload an image for knife detection", type=["jpg", "png", "jpeg"])
-
-    if uploaded_file is not None:
-    # Read the uploaded image
-    file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
-    image = cv2.imdecode(file_bytes, 1)
-
-    # Detect knives using the model
-    output_image = detect_knives_with_model(image, knife_model, knife_scaler)
-
-    # Convert to RGB for displaying in Streamlit
-    output_image = cv2.cvtColor(output_image, cv2.COLOR_BGR2RGB)
-
-    st.image(output_image, caption="Knife Detection Result", use_column_width=True)
-
-
-st.write("Select a mode above to get started!")
+while run:
+    _, frame = camera.read()
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    FRAME_WINDOW.image(frame)
+else:
+    st.write('Stopped')
 
