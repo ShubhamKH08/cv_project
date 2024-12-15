@@ -658,11 +658,11 @@
 #     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 #     st.image(frame, caption="Captured Image", use_container_width=True)
 
-import cv2
+imporimport cv2
 import numpy as np
 import joblib
 import streamlit as st
-from PIL import Image
+import time
 
 def load_model_and_scaler(model_path="svm_model.pkl", scaler_path="scaler.pkl"):
     # Load the trained model
@@ -714,22 +714,21 @@ def extract_features(image, bbox):
 
 # Streamlit App
 st.title("Knife Detection Using SVM")
-st.markdown("Live webcam video processing for knife detection using SVM.")
+st.markdown("Automatically capture and process an image every second for knife detection using SVM.")
 
 # Access webcam via OpenCV
 FRAME_WINDOW = st.image([])
-
-# Open webcam
 camera = cv2.VideoCapture(0)
 
 # Check if webcam is opened
 if not camera.isOpened():
     st.error("Error: Could not access the webcam.")
 else:
-    run = st.checkbox("Run Video Stream")
+    run = st.checkbox("Run Video Processing")
 
     while run:
-        # Capture a frame
+        # Capture a frame every second
+        time.sleep(1)
         ret, frame = camera.read()
         if not ret:
             st.error("Error: Unable to read from webcam.")
@@ -777,10 +776,10 @@ else:
         # Convert BGR to RGB for Streamlit
         frame_rgb = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB)
 
-        # Display the frame in Streamlit
+        # Display the processed frame in Streamlit
         FRAME_WINDOW.image(frame_rgb)
 
     # Release the webcam when done
     camera.release()
-    st.write("Video stream stopped.")
+    st.write("Video processing stopped.")
 
